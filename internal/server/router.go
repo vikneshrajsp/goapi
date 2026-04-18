@@ -1,6 +1,7 @@
 package server
 
 import (
+	"goapi/internal/database"
 	"goapi/internal/handlers"
 	"goapi/internal/observability"
 
@@ -9,14 +10,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewRouter() *chi.Mux {
+// NewRouter wires Chi with shared dependencies.
+func NewRouter(repo database.Repository) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(chiMiddleware.StripSlashes)
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(observability.Middleware)
 
-	handlers.NewHandler(r)
+	handlers.NewHandler(r, repo)
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r

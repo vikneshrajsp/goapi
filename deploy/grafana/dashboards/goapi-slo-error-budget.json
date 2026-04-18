@@ -4,7 +4,7 @@
   "title": "GoAPI SLO / Error Budget",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "time": {
     "from": "now-6h",
@@ -13,13 +13,14 @@
   "panels": [
     {
       "id": 1,
-      "title": "Availability (Success Ratio)",
+      "title": "Availability (Success vs 5xx)",
+      "description": "Treats server errors (5xx) as failed. Uses job=goapi only. Empty 5xx series yield 100% via or vector(0).",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "1 - (sum(rate(goapi_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(goapi_http_requests_total[5m])), 1))",
-          "legendFormat": "success ratio"
+          "expr": "1 - (((sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[5m])), 1)))",
+          "legendFormat": "success ratio (1 - 5xx/all)"
         }
       ],
       "fieldConfig": {
@@ -59,12 +60,13 @@
     },
     {
       "id": 3,
-      "title": "Remaining Error Budget Fraction",
+      "title": "Remaining Error Budget Fraction (rolling 7d)",
+      "description": "Uses a 7-day window so single-node Prometheus retention can stay aligned. Tune if you extend TSDB retention.",
       "type": "stat",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "clamp_min(1 - ((sum(rate(goapi_http_requests_total{status=~\"5..\"}[30d])) / clamp_min(sum(rate(goapi_http_requests_total[30d])), 1)) / (1 - 0.999)), 0)",
+          "expr": "clamp_min(1 - (((sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"5..\"}[7d])) or vector(0)) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[7d])), 1)) / (1 - 0.999)), 0)",
           "legendFormat": "budget remaining"
         }
       ],
@@ -83,8 +85,8 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(goapi_http_request_duration_seconds_bucket[5m])))",
-          "legendFormat": "p95 latency"
+          "expr": "histogram_quantile(0.95, sum by (le, route, method) (rate(goapi_http_request_duration_seconds_bucket{job=\"goapi\"}[5m])))",
+          "legendFormat": "p95 · {{route}} {{method}}"
         },
         {
           "expr": "0.3",
@@ -102,11 +104,12 @@
     {
       "id": 5,
       "title": "Burn Rate (1h window)",
+      "description": "Burn rate > 1 means consuming error budget faster than sustained SLO allows (here vs 99.9%).",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "(sum(rate(goapi_http_requests_total{status=~\"5..\"}[1h])) / clamp_min(sum(rate(goapi_http_requests_total[1h])), 1)) / (1 - 0.999)",
+          "expr": "((sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"5..\"}[1h])) or vector(0)) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[1h])), 1)) / (1 - 0.999)",
           "legendFormat": "1h burn rate"
         }
       ],
@@ -119,7 +122,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "(sum(rate(goapi_http_requests_total{status=~\"5..\"}[6h])) / clamp_min(sum(rate(goapi_http_requests_total[6h])), 1)) / (1 - 0.999)",
+          "expr": "((sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"5..\"}[6h])) or vector(0)) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[6h])), 1)) / (1 - 0.999)",
           "legendFormat": "6h burn rate"
         }
       ],
@@ -127,13 +130,14 @@
     },
     {
       "id": 7,
-      "title": "Latency SLO Violations (>300ms)",
+      "title": "Latency SLO (requests slower than 300ms / sec)",
+      "description": "Difference between cumulative histogram rates at +Inf and at 300ms (requires app histogram bucket at 0.3s).",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum(rate(goapi_http_request_duration_seconds_bucket{le=\"+Inf\"}[5m])) - sum(rate(goapi_http_request_duration_seconds_bucket{le=\"0.3\"}[5m]))",
-          "legendFormat": "slow requests / sec"
+          "expr": "sum(rate(goapi_http_request_duration_seconds_bucket{job=\"goapi\",le=\"+Inf\"}[5m])) - sum(rate(goapi_http_request_duration_seconds_bucket{job=\"goapi\",le=\"0.3\"}[5m]))",
+          "legendFormat": "estimated slow requests / sec (>300ms)"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }

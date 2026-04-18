@@ -4,7 +4,7 @@
   "title": "GoAPI Performance Overview",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 3,
   "refresh": "10s",
   "time": {
     "from": "now-30m",
@@ -18,7 +18,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum by (route) (rate(goapi_http_requests_total[5m]))",
+          "expr": "sum by (route) (rate(goapi_http_requests_total{job=\"goapi\"}[5m]))",
           "legendFormat": "{{route}}"
         }
       ],
@@ -26,13 +26,18 @@
     },
     {
       "id": 2,
-      "title": "Error Rate (5xx)",
+      "title": "HTTP error ratio (4xx vs 5xx)",
+      "description": "Ratios use only goapi scrape targets. Most application failures are 4xx (e.g. auth); 5xx alone would show empty.",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum(rate(goapi_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(goapi_http_requests_total[5m])), 1)",
-          "legendFormat": "5xx ratio"
+          "expr": "sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"4..\"}[5m])) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[5m])), 1)",
+          "legendFormat": "4xx / all requests"
+        },
+        {
+          "expr": "sum(rate(goapi_http_requests_total{job=\"goapi\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(goapi_http_requests_total{job=\"goapi\"}[5m])), 1)",
+          "legendFormat": "5xx / all requests"
         }
       ],
       "fieldConfig": {
@@ -50,7 +55,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(goapi_http_request_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(goapi_http_request_duration_seconds_bucket{job=\"goapi\"}[5m])))",
           "legendFormat": "{{route}}"
         }
       ],
@@ -64,16 +69,88 @@
     },
     {
       "id": 4,
-      "title": "Go Routines",
+      "title": "Go goroutines (goapi process)",
+      "description": "Runtime metric `go_goroutines`: number of goroutines in the Go API process. Prometheus also exposes similar Go runtime metrics — this panel filters job=goapi only.",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "go_goroutines",
-          "legendFormat": "goroutines"
+          "expr": "go_goroutines{job=\"goapi\"}",
+          "legendFormat": "goroutines · {{job}} · {{instance}}"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "id": 5,
+      "title": "Postgres backends (connections)",
+      "description": "From postgres_exporter: active connections per database.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{job=\"postgres\",datname=\"goapi\"}",
+          "legendFormat": "numbackends · {{datname}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    },
+    {
+      "id": 6,
+      "title": "Postgres shared buffers: hits vs disk reads (blocks/s)",
+      "description": "pg_stat_database block cache hits vs reads from disk (8 kiB blocks). Useful IO proxy alongside cache effectiveness.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"goapi\"}[2m])",
+          "legendFormat": "shared buffer hits/s"
+        },
+        {
+          "expr": "rate(pg_stat_database_blks_read{job=\"postgres\",datname=\"goapi\"}[2m])",
+          "legendFormat": "disk reads/s (blocks)"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+    },
+    {
+      "id": 7,
+      "title": "Postgres commits & rollbacks / sec",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres\",datname=\"goapi\"}[2m])",
+          "legendFormat": "commits/s"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres\",datname=\"goapi\"}[2m])",
+          "legendFormat": "rollbacks/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }
+    },
+    {
+      "id": 8,
+      "title": "Postgres shared buffer cache hit ratio",
+      "description": "Hits / (hits + disk reads). Higher is better.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"goapi\"}[2m])) / (sum(rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"goapi\"}[2m])) + sum(rate(pg_stat_database_blks_read{job=\"postgres\",datname=\"goapi\"}[2m])) + 1e-9)",
+          "legendFormat": "buffer cache hit ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 }
     }
   ]
 }

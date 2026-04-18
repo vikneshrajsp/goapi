@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"goapi/internal/config"
+	"goapi/internal/database"
 	"goapi/internal/observability"
 	"goapi/internal/server"
 
@@ -23,6 +24,12 @@ func main() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(config.ResolveLogLevel())
 	config.ConfigureLogOutput()
+
+	repo, err := database.New(ctx)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	defer closeRepository(repo)
 
 	shutdownTracer, err := observability.InitTracer(ctx)
 	if err != nil {
@@ -41,7 +48,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:              ":8080",
-		Handler:           server.NewRouter(),
+		Handler:           server.NewRouter(repo),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -52,6 +59,24 @@ func main() {
 	}()
 
 	waitForShutdown(httpServer)
+}
+
+func closeRepository(repo database.Repository) {
+	type closer interface {
+		Close()
+	}
+	if c, ok := repo.(closer); ok {
+		c.Close()
+		return
+	}
+	type ioCloser interface {
+		Close() error
+	}
+	if c, ok := repo.(ioCloser); ok {
+		if err := c.Close(); err != nil {
+			log.Errorf("database close: %v", err)
+		}
+	}
 }
 
 func waitForShutdown(server *http.Server) {

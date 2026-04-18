@@ -2,7 +2,7 @@ APP_NAME=goapi
 BIN_DIR=bin
 BIN_PATH=$(BIN_DIR)/$(APP_NAME)
 
-.PHONY: build run test test-unit test-integration clean docker-build
+.PHONY: build run test test-unit test-integration test-testcontainers clean docker-build
 
 build:
 	mkdir -p $(BIN_DIR)
@@ -18,6 +18,10 @@ test-unit:
 
 test-integration:
 	go test -tags=integration ./...
+
+# Requires Docker (pulls postgres image). Skipped when -short is set.
+test-testcontainers:
+	go test -tags=testcontainers ./internal/database/...
 
 docker-build:
 	docker build -t $(APP_NAME):local .
