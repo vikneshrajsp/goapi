@@ -177,3 +177,43 @@ func (p *postgresRepo) UpdateCoinDetails(ctx context.Context, username string, b
 	}
 	return &cd, nil
 }
+
+func (p *postgresRepo) SetUserWebhookURL(ctx context.Context, username string, webhookURL string) error {
+	ctx, cancel := context.WithTimeout(ctx, dbOpTimeout)
+	defer cancel()
+
+	const stmt = `INSERT INTO user_webhooks (username, webhook_url)
+VALUES ($1, $2)
+ON CONFLICT (username) DO UPDATE SET webhook_url = EXCLUDED.webhook_url, updated_at = NOW()`
+	ctx, span := p.startSQLSpan(ctx, "postgres.query user_webhooks UPSERT", stmt)
+	defer span.End()
+
+	tag, err := p.pool.Exec(ctx, stmt, username, webhookURL)
+	if err != nil {
+		recordSpanErr(span, err)
+		return fmt.Errorf("set webhook url: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (p *postgresRepo) GetUserWebhookURL(ctx context.Context, username string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbOpTimeout)
+	defer cancel()
+
+	const stmt = `SELECT webhook_url FROM user_webhooks WHERE username = $1`
+	ctx, span := p.startSQLSpan(ctx, "postgres.query user_webhooks SELECT", stmt)
+	defer span.End()
+
+	var webhookURL string
+	if err := p.pool.QueryRow(ctx, stmt, username).Scan(&webhookURL); err != nil {
+		recordSpanErr(span, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrUserNotFound
+		}
+		return "", fmt.Errorf("get webhook url: %w", err)
+	}
+	return webhookURL, nil
+}

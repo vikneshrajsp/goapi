@@ -23,4 +23,6 @@ type Repository interface {
 	GetLoginDetails(context.Context, string) (*LoginDetails, error)
 	GetCoinDetails(context.Context, string) (*CoinDetails, error)
 	UpdateCoinDetails(context.Context, string, int64) (*CoinDetails, error)
+	SetUserWebhookURL(context.Context, string, string) error
+	GetUserWebhookURL(context.Context, string) (string, error)
 }

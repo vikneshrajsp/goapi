@@ -151,6 +151,32 @@
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 }
+    },
+    {
+      "id": 9,
+      "title": "Coin balance change events consumed / sec",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(goapi_coinbalance_events_total{job=\"coinbalance-metrics\"}[2m]))",
+          "legendFormat": "events/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 }
+    },
+    {
+      "id": 10,
+      "title": "Coin balance delta distribution (95th percentile)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(goapi_coinbalance_delta_bucket{job=\"coinbalance-metrics\"}[5m])))",
+          "legendFormat": "p95 delta"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 }
     }
   ]
 }

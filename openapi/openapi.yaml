@@ -61,6 +61,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /account/webhook:
+    put:
+      summary: Register or update webhook URL for a user
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetWebhookRequest"
+      responses:
+        "200":
+          description: Registered webhook URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetWebhookResponse"
+        "400":
+          description: Bad request / unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       summary: Update coin balance for a user
       parameters:
@@ -144,6 +177,28 @@ components:
           format: int64
           example: 150
       required: [code, username, balance]
+    SetWebhookRequest:
+      type: object
+      properties:
+        webhook_url:
+          type: string
+          format: uri
+          example: https://example.com/hook
+      required: [webhook_url]
+    SetWebhookResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        username:
+          type: string
+          example: alex
+        webhook_url:
+          type: string
+          format: uri
+          example: https://example.com/hook
+      required: [code, username, webhook_url]
     ErrorResponse:
       type: object
       properties:

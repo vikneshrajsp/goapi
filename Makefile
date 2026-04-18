@@ -21,7 +21,7 @@ test-integration:
 
 # Requires Docker (pulls postgres image). Skipped when -short is set.
 test-testcontainers:
-	go test -tags=testcontainers ./internal/database/...
+	go test -tags=testcontainers ./internal/...
 
 docker-build:
 	docker build -t $(APP_NAME):local .

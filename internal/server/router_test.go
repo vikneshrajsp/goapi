@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewRouterRegistersHealthEndpoints(t *testing.T) {
-	r := NewRouter(mockRepo(t))
+	r := NewRouter(mockRepo(t), testDeps())
 
 	pingReq := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	pingRec := httptest.NewRecorder()
@@ -25,7 +25,7 @@ func TestNewRouterRegistersHealthEndpoints(t *testing.T) {
 }
 
 func TestNewRouterRegistersMetricsEndpoint(t *testing.T) {
-	r := NewRouter(mockRepo(t))
+	r := NewRouter(mockRepo(t), testDeps())
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)

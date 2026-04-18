@@ -26,7 +26,7 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 		t.Fatalf("database: %v", err)
 	}
 	r := chi.NewRouter()
-	NewHandler(r, repo)
+	NewHandler(r, repo, testDeps())
 	return httptest.NewServer(r)
 }
 

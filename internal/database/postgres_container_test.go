@@ -65,6 +65,17 @@ func TestPostgresRepositoryAgainstContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := repo.SetUserWebhookURL(ctx, "alex", "https://example.com/hook"); err != nil {
+		t.Fatalf("set webhook url: %v", err)
+	}
+	hook, err := repo.GetUserWebhookURL(ctx, "alex")
+	if err != nil {
+		t.Fatalf("get webhook url: %v", err)
+	}
+	if hook != "https://example.com/hook" {
+		t.Fatalf("unexpected webhook url: %s", hook)
+	}
+
 	if _, err := repo.GetLoginDetails(ctx, "ghost"); !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("expected ErrUserNotFound for login, got %v", err)
 	}

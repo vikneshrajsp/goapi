@@ -1,4 +1,41 @@
 services:
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "29092:29092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: kafka_init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic coinbalance_change --partitions 3 --replication-factor 1"
+    restart: "no"
+
   postgres:
     image: postgres:16-alpine
     container_name: postgres
@@ -41,6 +78,8 @@ services:
       OTEL_SERVICE_NAME: goapi
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
       OTEL_TRACES_SAMPLER_ARG: "1.0"
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC_COINBALANCE: coinbalance_change
     ports:
       - "8080:8080"
     read_only: true
@@ -55,6 +94,62 @@ services:
         condition: service_healthy
       jaeger:
         condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  coinbalance-notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        APP_PKG: ./cmd/coinbalance-notifier
+    image: goapi-notifier:local
+    container_name: coinbalance_notifier
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: info
+      GOAPI_DB_DRIVER: postgres
+      DATABASE_URL: postgres://goapi:goapi@postgres:5432/goapi?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC_COINBALANCE: coinbalance_change
+      OTEL_SERVICE_NAME: coinbalance-notifier
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+    ports:
+      - "8091:8091"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  coinbalance-metrics:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        APP_PKG: ./cmd/coinbalance-metrics
+    image: goapi-event-metrics:local
+    container_name: coinbalance_metrics
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: info
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC_COINBALANCE: coinbalance_change
+      OTEL_SERVICE_NAME: coinbalance-metrics
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+    ports:
+      - "8092:8092"
+    depends_on:
+      jaeger:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   prometheus:

@@ -9,7 +9,7 @@ import (
 type mockRepo struct{}
 
 var mockLoginDetails = map[string]LoginDetails{
-	"alex": {Username: "alex", AuthToken: "123AL100"},
+	"alex":  {Username: "alex", AuthToken: "123AL100"},
 	"kevin": {Username: "kevin", AuthToken: "456KV100"},
 	"max":   {Username: "max", AuthToken: "789MX100"},
 }
@@ -17,10 +17,14 @@ var mockLoginDetails = map[string]LoginDetails{
 var mockCoinDetailsMu sync.RWMutex
 
 var mockCoinDetails = map[string]CoinDetails{
-	"alex": {Username: "alex", Coins: 100},
+	"alex":  {Username: "alex", Coins: 100},
 	"kevin": {Username: "kevin", Coins: 120},
 	"max":   {Username: "max", Coins: 130},
 }
+
+var mockWebhookURLsMu sync.RWMutex
+
+var mockWebhookURLs = map[string]string{}
 
 func (m *mockRepo) Setup(context.Context) error {
 	return nil
@@ -60,4 +64,27 @@ func (m *mockRepo) UpdateCoinDetails(_ context.Context, username string, balance
 	mockCoinDetails[username] = CoinDetails{Username: username, Coins: balance}
 	d := mockCoinDetails[username]
 	return &d, nil
+}
+
+func (m *mockRepo) SetUserWebhookURL(_ context.Context, username string, webhookURL string) error {
+	if _, ok := mockLoginDetails[username]; !ok {
+		return ErrUserNotFound
+	}
+	mockWebhookURLsMu.Lock()
+	defer mockWebhookURLsMu.Unlock()
+	mockWebhookURLs[username] = webhookURL
+	return nil
+}
+
+func (m *mockRepo) GetUserWebhookURL(_ context.Context, username string) (string, error) {
+	if _, ok := mockLoginDetails[username]; !ok {
+		return "", ErrUserNotFound
+	}
+	mockWebhookURLsMu.RLock()
+	defer mockWebhookURLsMu.RUnlock()
+	url, ok := mockWebhookURLs[username]
+	if !ok || url == "" {
+		return "", ErrUserNotFound
+	}
+	return url, nil
 }
