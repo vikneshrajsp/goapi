@@ -62,6 +62,20 @@ func TestRoutePatternOrPathUsesChiRoutePattern(t *testing.T) {
 	}
 }
 
+func TestMiddlewareObservesServerErrorStatus(t *testing.T) {
+	handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/downstream", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("expected status %d, got %d", http.StatusBadGateway, rec.Code)
+	}
+}
+
 func TestMiddlewarePassesThroughStatusCode(t *testing.T) {
 	handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTeapot)

@@ -1,4 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: goapi
+      POSTGRES_PASSWORD: goapi
+      POSTGRES_DB: goapi
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goapi -d goapi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://goapi:goapi@postgres:5432/goapi?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   goapi:
     build:
       context: .
@@ -8,6 +36,8 @@ services:
     environment:
       APP_ENV: production
       LOG_LEVEL: info
+      GOAPI_DB_DRIVER: postgres
+      DATABASE_URL: postgres://goapi:goapi@postgres:5432/goapi?sslmode=disable
       OTEL_SERVICE_NAME: goapi
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
       OTEL_TRACES_SAMPLER_ARG: "1.0"
@@ -21,7 +51,10 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - jaeger
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
     restart: unless-stopped
 
   prometheus:
@@ -29,12 +62,17 @@ services:
     container_name: prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+      # Allow POST /-/reload after scrape config edits (curl -X POST localhost:9090/-/reload).
+      - --web.enable-lifecycle
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./deploy/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
+    depends_on:
+      postgres_exporter:
+        condition: service_started
     restart: unless-stopped
 
   loki:
@@ -88,9 +126,11 @@ services:
       - prometheus
       - loki
       - jaeger
+      - postgres_exporter
     restart: unless-stopped
 
 volumes:
+  postgres-data:
   prometheus-data:
   grafana-data:
   loki-data:

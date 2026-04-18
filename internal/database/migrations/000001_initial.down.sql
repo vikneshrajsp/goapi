@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS coin_balances;
+DROP TABLE IF EXISTS users;

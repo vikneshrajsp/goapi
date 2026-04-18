@@ -4,7 +4,7 @@
   "title": "GoAPI GC Deep Dive",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "time": {
     "from": "now-30m",
@@ -13,13 +13,14 @@
   "panels": [
     {
       "id": 1,
-      "title": "Heap In Use",
+      "title": "Heap in use (goapi)",
+      "description": "go_memstats_heap_inuse_bytes — bytes in idle spans that are still considered in use (`job=goapi` excludes Prometheus's own Go runtime metrics).",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "go_memstats_heap_inuse_bytes",
-          "legendFormat": "heap in use"
+          "expr": "go_memstats_heap_inuse_bytes{job=\"goapi\"}",
+          "legendFormat": "heap_inuse_bytes · {{job}} · {{instance}}"
         }
       ],
       "fieldConfig": {
@@ -32,39 +33,45 @@
     },
     {
       "id": 2,
-      "title": "Heap Objects",
+      "title": "Heap objects (goapi)",
+      "description": "go_memstats_heap_objects — count of objects on the heap.",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "go_memstats_heap_objects",
-          "legendFormat": "objects"
+          "expr": "go_memstats_heap_objects{job=\"goapi\"}",
+          "legendFormat": "heap_objects · {{job}} · {{instance}}"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
     },
     {
       "id": 3,
-      "title": "GC Cycles / sec",
+      "title": "Automatic GC cycles / sec (goapi)",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(go_gc_cycles_automatic_gc_cycles_total[5m])",
-          "legendFormat": "gc cycles/s"
+          "expr": "rate(go_gc_cycles_automatic_gc_cycles_total{job=\"goapi\"}[5m])",
+          "legendFormat": "automatic GC cycles/s · {{job}}"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
     },
     {
       "id": 4,
-      "title": "GC Pause (total seconds / sec)",
+      "title": "GC pause time (rate of summed pause seconds)",
+      "description": "go_gc_duration_seconds is a Prometheus summary. sum = cumulative pause seconds; rate(sum) approximates pause seconds experienced per wall-clock second (stop-the-world pressure). count series shows sampling weight.",
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(go_gc_duration_seconds_sum[5m])",
-          "legendFormat": "pause seconds/s"
+          "expr": "rate(go_gc_duration_seconds_sum{job=\"goapi\"}[5m])",
+          "legendFormat": "rate(gc_duration_seconds_sum)[5m] · {{job}}"
+        },
+        {
+          "expr": "rate(go_gc_duration_seconds_count{job=\"goapi\"}[5m])",
+          "legendFormat": "rate(gc_duration_seconds_count)[5m] · GC events contributing to sum"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }

@@ -4,6 +4,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -12,18 +13,25 @@ import (
 	"testing"
 
 	"goapi/api"
+	"goapi/internal/database"
 
 	"github.com/go-chi/chi"
 )
 
-func setupIntegrationServer() *httptest.Server {
+func setupIntegrationServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	t.Setenv("GOAPI_DB_DRIVER", database.DriverMock)
+	repo, err := database.New(context.Background())
+	if err != nil {
+		t.Fatalf("database: %v", err)
+	}
 	r := chi.NewRouter()
-	NewHandler(r)
+	NewHandler(r, repo)
 	return httptest.NewServer(r)
 }
 
 func TestIntegrationGetCoinBalance(t *testing.T) {
-	server := setupIntegrationServer()
+	server := setupIntegrationServer(t)
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodGet, server.URL+"/account/coins?username=alex", nil)
@@ -53,7 +61,7 @@ func TestIntegrationGetCoinBalance(t *testing.T) {
 }
 
 func TestIntegrationUpdateCoinBalance(t *testing.T) {
-	server := setupIntegrationServer()
+	server := setupIntegrationServer(t)
 	defer server.Close()
 
 	payload := api.UpdateCoinBalanceRequest{Balance: 777}
@@ -97,7 +105,7 @@ func TestIntegrationUpdateCoinBalance(t *testing.T) {
 }
 
 func TestIntegrationPingHandler(t *testing.T) {
-	server := setupIntegrationServer()
+	server := setupIntegrationServer(t)
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodGet, server.URL+"/ping", nil)
@@ -124,7 +132,7 @@ func TestIntegrationPingHandler(t *testing.T) {
 }
 
 func TestIntegrationHealthHandler(t *testing.T) {
-	server := setupIntegrationServer()
+	server := setupIntegrationServer(t)
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodGet, server.URL+"/health", nil)

@@ -15,7 +15,7 @@ func TestAuthorizeHandlerUnauthorizedWithoutHeaders(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/account/coins", nil)
 	rec := httptest.NewRecorder()
 
-	AuthorizeHandler(next).ServeHTTP(rec, req)
+	Authorize(mockRepo(t))(next).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -36,7 +36,7 @@ func TestAuthorizeHandlerAuthorized(t *testing.T) {
 	req.Header.Set("Authorization", "123AL100")
 	rec := httptest.NewRecorder()
 
-	AuthorizeHandler(next).ServeHTTP(rec, req)
+	Authorize(mockRepo(t))(next).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -56,7 +56,7 @@ func TestAuthorizeHandlerInvalidToken(t *testing.T) {
 	req.Header.Set("Authorization", "bad-token")
 	rec := httptest.NewRecorder()
 
-	AuthorizeHandler(next).ServeHTTP(rec, req)
+	Authorize(mockRepo(t))(next).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -76,7 +76,7 @@ func TestAuthorizeHandlerUnknownUser(t *testing.T) {
 	req.Header.Set("Authorization", "123AL100")
 	rec := httptest.NewRecorder()
 
-	AuthorizeHandler(next).ServeHTTP(rec, req)
+	Authorize(mockRepo(t))(next).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)

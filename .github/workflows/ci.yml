@@ -19,18 +19,19 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run unit and integration tests with coverage
+      - name: Unit tests (no Docker)
+        run: go test ./...
+
+      - name: Integration + DB tests with coverage
         run: |
-          go test ./...
-          go test -tags=integration ./...
-          go test -tags=integration -coverprofile=coverage.out ./api ./internal/...
+          go test -tags='integration testcontainers' -coverprofile=coverage.out -covermode=atomic ./api ./internal/...
           go tool cover -func=coverage.out
 
-      - name: Enforce minimum coverage (80%)
+      - name: Enforce minimum coverage (85%)
         run: |
-          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$3); print $3}')
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ { gsub(/%/,"", $3); print $3 }')
           echo "Total coverage: ${COVERAGE}%"
-          awk -v c="${COVERAGE}" 'BEGIN { if (c+0 < 80) { exit 1 } }'
+          awk -v c="${COVERAGE}" 'BEGIN { if (c+0 < 85) exit 1 }'
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

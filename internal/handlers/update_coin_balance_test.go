@@ -2,20 +2,20 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"goapi/api"
-	"goapi/internal/tools"
 )
 
 func TestUpdateCoinBalanceMissingUsername(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins", bytes.NewBufferString(`{"balance":100}`))
 	rec := httptest.NewRecorder()
 
-	UpdateCoinBalance(rec, req)
+	updateCoinBalance(mockRepo(t))(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -26,7 +26,7 @@ func TestUpdateCoinBalanceInvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewBufferString("{"))
 	rec := httptest.NewRecorder()
 
-	UpdateCoinBalance(rec, req)
+	updateCoinBalance(mockRepo(t))(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -34,11 +34,10 @@ func TestUpdateCoinBalanceInvalidJSON(t *testing.T) {
 }
 
 func TestUpdateCoinBalanceSuccess(t *testing.T) {
-	db, err := tools.NewDatabase()
-	if err != nil {
-		t.Fatalf("failed to create db: %v", err)
-	}
-	original, err := db.GetCoinDetails("alex")
+	repo := mockRepo(t)
+
+	ctx := context.Background()
+	original, err := repo.GetCoinDetails(ctx, "alex")
 	if err != nil {
 		t.Fatalf("failed to read original balance: %v", err)
 	}
@@ -51,7 +50,7 @@ func TestUpdateCoinBalanceSuccess(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
-	UpdateCoinBalance(rec, req)
+	updateCoinBalance(repo)(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -65,9 +64,8 @@ func TestUpdateCoinBalanceSuccess(t *testing.T) {
 		t.Fatalf("expected updated balance 555, got %d", response.Balance)
 	}
 
-	_, restoreErr := db.UpdateCoinDetails("alex", original.Coins)
-	if restoreErr != nil {
-		t.Fatalf("failed to restore original balance: %v", restoreErr)
+	if _, err := repo.UpdateCoinDetails(ctx, "alex", original.Coins); err != nil {
+		t.Fatalf("failed to restore original balance: %v", err)
 	}
 }
 
@@ -81,7 +79,7 @@ func TestUpdateCoinBalanceNegativeBalance(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
-	UpdateCoinBalance(rec, req)
+	updateCoinBalance(mockRepo(t))(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)

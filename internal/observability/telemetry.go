@@ -33,9 +33,10 @@ var (
 
 	httpRequestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "goapi_http_request_duration_seconds",
-			Help:    "HTTP request duration by route and method.",
-			Buckets: prometheus.DefBuckets,
+			Name: "goapi_http_request_duration_seconds",
+			Help: "HTTP request duration by route and method.",
+			// Includes 0.3s so Grafana SLO panels can use le="0.3" (300ms).
+			Buckets: []float64{.005, .01, .025, .05, .1, .25, .3, .5, 1, 2.5, 5, 10},
 		},
 		[]string{"route", "method"},
 	)

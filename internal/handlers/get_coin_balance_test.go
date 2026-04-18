@@ -13,7 +13,7 @@ func TestGetCoinBalanceMissingUsername(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/account/coins", nil)
 	rec := httptest.NewRecorder()
 
-	GetCoinBalance(rec, req)
+	getCoinBalance(mockRepo(t))(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -24,7 +24,7 @@ func TestGetCoinBalanceSuccess(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/account/coins?username=alex", nil)
 	rec := httptest.NewRecorder()
 
-	GetCoinBalance(rec, req)
+	getCoinBalance(mockRepo(t))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -43,9 +43,9 @@ func TestGetCoinBalanceUnknownUser(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/account/coins?username=ghost", nil)
 	rec := httptest.NewRecorder()
 
-	GetCoinBalance(rec, req)
+	getCoinBalance(mockRepo(t))(rec, req)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
 	}
 }
