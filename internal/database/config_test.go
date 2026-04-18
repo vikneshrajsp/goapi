@@ -18,6 +18,20 @@ func TestDSNFromEnvDATABASE_URL(t *testing.T) {
 	}
 }
 
+func TestResolveDriverMockTrimmed(t *testing.T) {
+	t.Setenv("GOAPI_DB_DRIVER", " MOCK ")
+	if got := ResolveDriver(); got != DriverMock {
+		t.Fatalf("expected mock driver, got %q", got)
+	}
+}
+
+func TestResolveDriverPostgresCaseInsensitive(t *testing.T) {
+	t.Setenv("GOAPI_DB_DRIVER", "PoStGrEs")
+	if got := ResolveDriver(); got != DriverPostgres {
+		t.Fatalf("expected postgres driver, got %q", got)
+	}
+}
+
 func TestDSNFromEnvDiscrete(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("POSTGRES_USER", "u")

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -24,6 +25,24 @@ func TestMockGetCoinDetails(t *testing.T) {
 	}
 	if coin.Coins != 130 {
 		t.Fatalf("expected 130, got %d", coin.Coins)
+	}
+}
+
+func TestMockSetup(t *testing.T) {
+	m := &mockRepo{}
+	if err := m.Setup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMockNotFoundBranches(t *testing.T) {
+	m := &mockRepo{}
+
+	if _, err := m.GetCoinDetails(context.Background(), "nobody"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
+	}
+	if _, err := m.UpdateCoinDetails(context.Background(), "nobody", 10); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
 	}
 }
 

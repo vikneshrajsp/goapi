@@ -4,6 +4,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -64,7 +65,23 @@ func TestPostgresRepositoryAgainstContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if _, err := repo.GetLoginDetails(ctx, "ghost"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound for login, got %v", err)
+	}
+	if _, err := repo.GetCoinDetails(ctx, "ghost"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound for coins, got %v", err)
+	}
+	if _, err := repo.UpdateCoinDetails(ctx, "ghost", 1); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound for update unknown user, got %v", err)
+	}
+	if _, err := repo.UpdateCoinDetails(ctx, "alex", -1); err == nil {
+		t.Fatal("expected error for negative balance")
+	}
+
 	if pr, ok := repo.(*postgresRepo); ok {
+		if err := pr.Setup(ctx); err != nil {
+			t.Fatalf("Setup: %v", err)
+		}
 		pr.Close()
 	}
 }

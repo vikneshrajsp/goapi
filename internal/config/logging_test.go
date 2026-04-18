@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -64,4 +65,17 @@ func TestResolveLogLevelTrimSpaces(t *testing.T) {
 func TestConfigureLogOutputMissingDirectoryHandledGracefully(t *testing.T) {
 	t.Setenv("LOG_FILE_PATH", "")
 	ConfigureLogOutput()
+}
+
+func TestConfigureLogOutputWritesToTempFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "app.log")
+	t.Setenv("LOG_FILE_PATH", path)
+	t.Cleanup(func() { _ = os.Unsetenv("LOG_FILE_PATH") })
+
+	ConfigureLogOutput()
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected log file created at %s: %v", path, err)
+	}
 }

@@ -26,6 +26,24 @@ func TestRequestErrorHandler(t *testing.T) {
 	}
 }
 
+func TestResponseErrorHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	ResponseErrorHandler(rec, req, errors.New("retry"))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	}
+	var response ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Message != "retry" {
+		t.Fatalf("expected retry message, got %q", response.Message)
+	}
+}
+
 func TestInternalServerErrorHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()

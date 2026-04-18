@@ -17,3 +17,12 @@ func TestNewMockDriver(t *testing.T) {
 		t.Fatalf("expected mock repo")
 	}
 }
+
+func TestNewUnknownDriver(t *testing.T) {
+	t.Setenv("GOAPI_DB_DRIVER", "sqlite")
+	t.Setenv("DATABASE_URL", "")
+
+	if _, err := New(context.Background()); err == nil {
+		t.Fatal("expected error for unknown GOAPI_DB_DRIVER")
+	}
+}
