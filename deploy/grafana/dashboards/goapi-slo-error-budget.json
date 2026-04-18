@@ -1,0 +1,142 @@
+{
+  "id": null,
+  "uid": "goapi-slo-error-budget",
+  "title": "GoAPI SLO / Error Budget",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Availability (Success Ratio)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "1 - (sum(rate(goapi_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(goapi_http_requests_total[5m])), 1))",
+          "legendFormat": "success ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.995 },
+              { "color": "green", "value": 0.999 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Availability SLO Target",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "0.999",
+          "legendFormat": "target"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "Remaining Error Budget Fraction",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "clamp_min(1 - ((sum(rate(goapi_http_requests_total{status=~\"5..\"}[30d])) / clamp_min(sum(rate(goapi_http_requests_total[30d])), 1)) / (1 - 0.999)), 0)",
+          "legendFormat": "budget remaining"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 }
+    },
+    {
+      "id": 4,
+      "title": "Latency Objective (P95 < 300ms)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(goapi_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 latency"
+        },
+        {
+          "expr": "0.3",
+          "legendFormat": "SLO threshold (0.3s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "id": 5,
+      "title": "Burn Rate (1h window)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "(sum(rate(goapi_http_requests_total{status=~\"5..\"}[1h])) / clamp_min(sum(rate(goapi_http_requests_total[1h])), 1)) / (1 - 0.999)",
+          "legendFormat": "1h burn rate"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "id": 6,
+      "title": "Burn Rate (6h window)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "(sum(rate(goapi_http_requests_total{status=~\"5..\"}[6h])) / clamp_min(sum(rate(goapi_http_requests_total[6h])), 1)) / (1 - 0.999)",
+          "legendFormat": "6h burn rate"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    },
+    {
+      "id": 7,
+      "title": "Latency SLO Violations (>300ms)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(goapi_http_request_duration_seconds_bucket{le=\"+Inf\"}[5m])) - sum(rate(goapi_http_request_duration_seconds_bucket{le=\"0.3\"}[5m]))",
+          "legendFormat": "slow requests / sec"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+    }
+  ]
+}

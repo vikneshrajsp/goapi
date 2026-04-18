@@ -1,0 +1,28 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build/test artifacts
+*.test
+*.out
+coverage.out
+*.coverprofile
+.cache/
+tmp/
+*.log
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Env/config secrets
+.env
+.env.*
+
+# Docker/local overrides
+docker-compose.override.yml

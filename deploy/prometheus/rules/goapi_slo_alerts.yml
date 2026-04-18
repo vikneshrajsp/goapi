@@ -1,0 +1,78 @@
+# Multi-window multi-burn alerts for availability SLO.
+#
+# Objective: 99.9% success (allowed bad ratio = 1 - 0.999 = 0.001).
+# "Burn rate" here = (observed_error_ratio) / (allowed_error_ratio).
+#
+# Mapping to common SRE tables (30-day window):
+# - ~2% of monthly error budget consumed in a 1h window  => burn_rate > ~14.4
+# - ~5% of monthly error budget consumed in a 6h window => burn_rate > ~6
+#
+# Both conditions together reduce false positives (multi-window).
+#
+# Adjust SLO_OBJECTIVE or thresholds if your budget window differs.
+
+groups:
+  - name: goapi_slo_recording
+    interval: 15s
+    rules:
+      - record: goapi:slo_error_ratio:1h
+        expr: |
+          sum(rate(goapi_http_requests_total{status=~"5.."}[1h]))
+          /
+          clamp_min(sum(rate(goapi_http_requests_total[1h])), 1e-9)
+
+      - record: goapi:slo_error_ratio:6h
+        expr: |
+          sum(rate(goapi_http_requests_total{status=~"5.."}[6h]))
+          /
+          clamp_min(sum(rate(goapi_http_requests_total[6h])), 1e-9)
+
+      - record: goapi:slo_burn_rate:1h
+        expr: goapi:slo_error_ratio:1h / 0.001
+
+      - record: goapi:slo_burn_rate:6h
+        expr: goapi:slo_error_ratio:6h / 0.001
+
+  - name: goapi_slo_alerts
+    interval: 15s
+    rules:
+      - alert: GoAPI_ErrorBudget_MultiWindowFastBurn
+        expr: |
+          (
+            goapi:slo_burn_rate:1h > 14.4
+          )
+          and
+          (
+            goapi:slo_burn_rate:6h > 6
+          )
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability_999
+        annotations:
+          summary: "goapi error budget burning fast (multi-window)"
+          description: |
+            Multi-window fast burn for 99.9% availability SLO: burn_rate_1h > 14.4 AND burn_rate_6h > 6.
+            Inspect recording series goapi:slo_burn_rate:1h and goapi:slo_burn_rate:6h.
+
+      - alert: GoAPI_ErrorBudget_FastBurn_1h
+        expr: goapi:slo_burn_rate:1h > 14.4
+        for: 5m
+        labels:
+          severity: warning
+          slo: availability_999
+        annotations:
+          summary: "goapi 1h burn rate above fast-burn threshold"
+          description: |
+            Threshold 14.4 corresponds to roughly 2% of monthly error budget consumed if sustained from a 30-day budget window perspective.
+
+      - alert: GoAPI_ErrorBudget_FastBurn_6h
+        expr: goapi:slo_burn_rate:6h > 6
+        for: 10m
+        labels:
+          severity: warning
+          slo: availability_999
+        annotations:
+          summary: "goapi 6h burn rate above fast-burn threshold"
+          description: |
+            Threshold 6 corresponds to roughly 5% of monthly error budget consumed over 6 hours for a 30-day budget window perspective.

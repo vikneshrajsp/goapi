@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  test-and-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit and integration tests with coverage
+        run: |
+          go test ./...
+          go test -tags=integration ./...
+          go test -tags=integration -coverprofile=coverage.out ./api ./internal/...
+          go tool cover -func=coverage.out
+
+      - name: Enforce minimum coverage (80%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$3); print $3}')
+          echo "Total coverage: ${COVERAGE}%"
+          awk -v c="${COVERAGE}" 'BEGIN { if (c+0 < 80) { exit 1 } }'
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
