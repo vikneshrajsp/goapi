@@ -9,13 +9,25 @@ import (
 	"testing"
 
 	"goapi/api"
+	"goapi/internal/messaging/events"
 )
+
+type capturePublisher struct {
+	calls int
+	last  events.CoinBalanceChanged
+}
+
+func (c *capturePublisher) PublishCoinBalanceChanged(_ context.Context, event events.CoinBalanceChanged) error {
+	c.calls++
+	c.last = event
+	return nil
+}
 
 func TestUpdateCoinBalanceMissingUsername(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins", bytes.NewBufferString(`{"balance":100}`))
 	rec := httptest.NewRecorder()
 
-	updateCoinBalance(mockRepo(t))(rec, req)
+	updateCoinBalance(mockRepo(t), testDeps().Publisher)(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -26,7 +38,7 @@ func TestUpdateCoinBalanceInvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewBufferString("{"))
 	rec := httptest.NewRecorder()
 
-	updateCoinBalance(mockRepo(t))(rec, req)
+	updateCoinBalance(mockRepo(t), testDeps().Publisher)(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -50,7 +62,7 @@ func TestUpdateCoinBalanceSuccess(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
-	updateCoinBalance(repo)(rec, req)
+	updateCoinBalance(repo, testDeps().Publisher)(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -79,9 +91,26 @@ func TestUpdateCoinBalanceNegativeBalance(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
-	updateCoinBalance(mockRepo(t))(rec, req)
+	updateCoinBalance(mockRepo(t), testDeps().Publisher)(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+}
+
+func TestUpdateCoinBalancePublishesEvent(t *testing.T) {
+	pub := &capturePublisher{}
+	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewBufferString(`{"balance":222}`))
+	rec := httptest.NewRecorder()
+
+	updateCoinBalance(mockRepo(t), pub)(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 got %d", rec.Code)
+	}
+	if pub.calls != 1 {
+		t.Fatalf("expected one publish call got %d", pub.calls)
+	}
+	if pub.last.Username != "alex" || pub.last.Current != 222 {
+		t.Fatalf("unexpected event payload: %+v", pub.last)
 	}
 }

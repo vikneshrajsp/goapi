@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"goapi/internal/database"
+	"goapi/internal/handlers"
+	"goapi/internal/messaging/kafka"
 )
 
 func mockRepo(t *testing.T) database.Repository {
@@ -15,4 +17,11 @@ func mockRepo(t *testing.T) database.Repository {
 		t.Fatalf("database.New: %v", err)
 	}
 	return repo
+}
+
+func testDeps() handlers.Deps {
+	return handlers.Deps{
+		Publisher:   kafka.NewNoopProducer(),
+		KafkaHealth: kafka.NewNoopProducer(),
+	}
 }

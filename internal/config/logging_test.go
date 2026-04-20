@@ -79,3 +79,24 @@ func TestConfigureLogOutputWritesToTempFile(t *testing.T) {
 		t.Fatalf("expected log file created at %s: %v", path, err)
 	}
 }
+
+func TestConfigureLogOutputMkdirFails(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(blocker, "nested", "app.log")
+	t.Setenv("LOG_FILE_PATH", logPath)
+	t.Cleanup(func() { _ = os.Unsetenv("LOG_FILE_PATH") })
+
+	ConfigureLogOutput()
+}
+
+func TestConfigureLogOutputOpenFileFails(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("LOG_FILE_PATH", dir)
+	t.Cleanup(func() { _ = os.Unsetenv("LOG_FILE_PATH") })
+
+	ConfigureLogOutput()
+}

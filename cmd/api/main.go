@@ -11,6 +11,8 @@ import (
 
 	"goapi/internal/config"
 	"goapi/internal/database"
+	"goapi/internal/handlers"
+	"goapi/internal/messaging/kafka"
 	"goapi/internal/observability"
 	"goapi/internal/server"
 
@@ -31,6 +33,9 @@ func main() {
 	}
 	defer closeRepository(repo)
 
+	producer := kafka.NewProducer(os.Getenv("KAFKA_BROKERS"), os.Getenv("KAFKA_TOPIC_COINBALANCE"))
+	defer closeProducer(producer)
+
 	shutdownTracer, err := observability.InitTracer(ctx)
 	if err != nil {
 		log.Fatalf("failed to initialize OpenTelemetry tracer: %v", err)
@@ -47,8 +52,11 @@ func main() {
 	log.Info("Starting server on port 8080")
 
 	httpServer := &http.Server{
-		Addr:              ":8080",
-		Handler:           server.NewRouter(repo),
+		Addr: ":8080",
+		Handler: server.NewRouter(repo, handlers.Deps{
+			Publisher:   producer,
+			KafkaHealth: producer,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -76,6 +84,15 @@ func closeRepository(repo database.Repository) {
 		if err := c.Close(); err != nil {
 			log.Errorf("database close: %v", err)
 		}
+	}
+}
+
+func closeProducer(producer interface{ Close() error }) {
+	if producer == nil {
+		return
+	}
+	if err := producer.Close(); err != nil {
+		log.Errorf("kafka producer close: %v", err)
 	}
 }
 

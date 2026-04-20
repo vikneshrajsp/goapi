@@ -11,14 +11,14 @@ import (
 )
 
 // NewRouter wires Chi with shared dependencies.
-func NewRouter(repo database.Repository) *chi.Mux {
+func NewRouter(repo database.Repository, deps handlers.Deps) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(chiMiddleware.StripSlashes)
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(observability.Middleware)
 
-	handlers.NewHandler(r, repo)
+	handlers.NewHandler(r, repo, deps)
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r

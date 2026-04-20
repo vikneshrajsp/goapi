@@ -71,3 +71,17 @@ func TestMockUpdateAndUnknownUser(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestMockWebhookURL(t *testing.T) {
+	m := &mockRepo{}
+	if err := m.SetUserWebhookURL(context.Background(), "alex", "https://example.com/hook"); err != nil {
+		t.Fatalf("set webhook: %v", err)
+	}
+	got, err := m.GetUserWebhookURL(context.Background(), "alex")
+	if err != nil {
+		t.Fatalf("get webhook: %v", err)
+	}
+	if got != "https://example.com/hook" {
+		t.Fatalf("unexpected webhook url %q", got)
+	}
+}

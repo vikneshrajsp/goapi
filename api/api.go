@@ -24,6 +24,16 @@ type UpdateCoinBalanceResponse struct {
 	Balance  int64  `json:"balance"`
 }
 
+type SetWebhookRequest struct {
+	WebhookURL string `json:"webhook_url"`
+}
+
+type SetWebhookResponse struct {
+	Code       int    `json:"code"`
+	Username   string `json:"username"`
+	WebhookURL string `json:"webhook_url"`
+}
+
 type ErrorResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`

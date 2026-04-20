@@ -29,6 +29,14 @@ func (repoTransientErr) UpdateCoinDetails(context.Context, string, int64) (*data
 	return nil, fmt.Errorf("db unavailable")
 }
 
+func (repoTransientErr) SetUserWebhookURL(context.Context, string, string) error {
+	return fmt.Errorf("db unavailable")
+}
+
+func (repoTransientErr) GetUserWebhookURL(context.Context, string) (string, error) {
+	return "", fmt.Errorf("db unavailable")
+}
+
 func TestGetCoinBalanceInternalServerError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/account/coins?username=alex", nil)
 	rec := httptest.NewRecorder()
@@ -49,7 +57,7 @@ func TestUpdateCoinBalanceRepoError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/account/coins?username=alex", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
-	updateCoinBalance(repoTransientErr{})(rec, req)
+	updateCoinBalance(repoTransientErr{}, testDeps().Publisher)(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d (RequestErrorHandler), got %d", http.StatusBadRequest, rec.Code)
