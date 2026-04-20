@@ -277,6 +277,10 @@ curl -G 'http://localhost:9090/api/v1/query' \
   --data-urlencode 'query=sum(goapi_coinbalance_events_total{job="coinbalance-metrics"})'
 ```
 
+### Grafana — Kafka pipeline dashboard
+
+After `docker compose up`, open Grafana (**http://localhost:3000**) → **Dashboards** → folder **goapi** → **GoAPI Kafka & coinbalance pipeline** (`deploy/grafana/dashboards/goapi-kafka-pipeline.json`). It plots application-visible Kafka signals scraped by Prometheus: successful **PUT /account/coins** rate vs **metrics worker** consumption rate, per-user event rates (top 10), delta histogram quantiles (`goapi_coinbalance_delta`), cumulative consumption windows, reported gauges (`goapi_coinbalance_current`), scrape **up** for `goapi` and `coinbalance-metrics`, worker RSS/goroutines, and **p95 latency** on the PUT route (producer runs inline there). Broker-side partition lag and JVM/JMX metrics are not included unless you add a Kafka broker exporter.
+
 ### Distributed traces (Jaeger)
 
 The API injects W3C trace context (`traceparent`, etc.) into Kafka message headers when publishing. Each worker initializes OTLP export like the API, extracts that context when consuming, and records **consumer** spans. In Jaeger you should see **one trace** for a balance update that includes:
@@ -304,6 +308,10 @@ Open [http://localhost:16686](http://localhost:16686), pick service **goapi**, s
   - `internal/workers/eventmetrics/worker_test.go`
 - Kafka producer/consumer helper tests:
   - `internal/messaging/kafka/producer_consumer_test.go`
+- event schema JSON round-trip:
+  - `internal/messaging/events/coinbalance_change_test.go`
+- logging output paths (`ConfigureLogOutput`):
+  - `internal/config/logging_test.go`
 
 ### Testcontainers integration
 

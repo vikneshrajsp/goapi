@@ -1,0 +1,189 @@
+{
+  "id": null,
+  "uid": "goapi-kafka-pipeline",
+  "title": "GoAPI Kafka & coinbalance pipeline",
+  "description": "Application-level Kafka signals: HTTP publish path (goapi), metrics-worker consumption (coinbalance-metrics), deltas, and process health. Broker-side JMX/lag metrics are not included here; add kafka-exporter if you need partition lag and broker internals.",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "PUT /account/coins (2xx) vs events consumed (metrics worker)",
+      "description": "Successful balance updates should emit one topic message; metrics consumer increments one event per message. Rates should track in steady state.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(goapi_http_requests_total{job=\"goapi\",route=\"/account/coins\",method=\"PUT\",status=~\"2..\"}[5m]))",
+          "legendFormat": "PUT /account/coins 2xx / s"
+        },
+        {
+          "expr": "sum(rate(goapi_coinbalance_events_total{job=\"coinbalance-metrics\"}[5m]))",
+          "legendFormat": "events consumed / s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Events consumed / sec by user (top 10)",
+      "description": "Per-username labels: keep an eye on cardinality in large deployments.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (username) (rate(goapi_coinbalance_events_total{job=\"coinbalance-metrics\"}[5m])))",
+          "legendFormat": "{{username}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 }
+    },
+    {
+      "id": 3,
+      "title": "Scrape targets up",
+      "description": "1 = Prometheus reached the metrics endpoint.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "up{job=\"goapi\"}",
+          "legendFormat": "goapi · {{instance}}"
+        },
+        {
+          "expr": "up{job=\"coinbalance-metrics\"}",
+          "legendFormat": "coinbalance-metrics · {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 1 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 }
+    },
+    {
+      "id": 4,
+      "title": "Balance delta — p50 / p95 / p99 (|delta|)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(goapi_coinbalance_delta_bucket{job=\"coinbalance-metrics\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(goapi_coinbalance_delta_bucket{job=\"coinbalance-metrics\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(goapi_coinbalance_delta_bucket{job=\"coinbalance-metrics\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 }
+    },
+    {
+      "id": 5,
+      "title": "Events consumed (5m increase, all users)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(goapi_coinbalance_events_total{job=\"coinbalance-metrics\"}[5m]))",
+          "legendFormat": "events per 5m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 }
+    },
+    {
+      "id": 6,
+      "title": "Reported current balance (gauge, top 10 users by value)",
+      "description": "Last-seen balance from the metrics worker stream (not authoritative vs DB).",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "topk(10, max by (username) (goapi_coinbalance_current{job=\"coinbalance-metrics\"}))",
+          "legendFormat": "{{username}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 }
+    },
+    {
+      "id": 7,
+      "title": "Metrics worker — memory & goroutines",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"coinbalance-metrics\"}",
+          "legendFormat": "RSS bytes"
+        },
+        {
+          "expr": "go_goroutines{job=\"coinbalance-metrics\"}",
+          "legendFormat": "goroutines"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "goroutines" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "none" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "RSS bytes" },
+            "properties": [{ "id": "unit", "value": "bytes" }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 }
+    },
+    {
+      "id": 8,
+      "title": "API — p95 latency for PUT /account/coins",
+      "description": "Producer runs inline on this route; spikes often correlate with Kafka or DB.",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(goapi_http_request_duration_seconds_bucket{job=\"goapi\",route=\"/account/coins\",method=\"PUT\"}[5m])))",
+          "legendFormat": "p95 latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 33 }
+    }
+  ]
+}
